@@ -34,6 +34,7 @@ import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.yield
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.fail
@@ -79,34 +80,27 @@ class WatcherTest {
 
     // The first query should get a "R2-D2" name
     apolloClient.enqueueTestResponse(query, episodeHeroNameData)
-    apolloClient.enqueueTestResponse(query, episodeHeroNameData)
     val job = launch {
-      apolloClient.query(query).watch().collect {
+      apolloClient.query(query).fetchPolicy(FetchPolicy.NetworkOnly).watch().collect {
         channel.send(it.data)
       }
     }
     val job2 = launch {
-      delay(500)
-      apolloClient.query(query).watch().collect {
+      delay(1000)
+      apolloClient.query(query).fetchPolicy(FetchPolicy.CacheOnly).watch().collect {
         channel2.send(it.data)
       }
     }
 
     assertEquals(channel.receiveOrTimeout()?.hero?.name, "R2-D2")
-    delay(1000)
+    delay(2000)
     assertEquals(channel2.receiveOrTimeout()?.hero?.name, "R2-D2")
 
+    yield()
     // Another newer call gets updated information with "Artoo"
     apolloClient.enqueueTestResponse(query, episodeHeroNameChangedData)
     apolloClient.query(query).fetchPolicy(FetchPolicy.NetworkOnly).execute()
 
-    apolloClient.query(query).toFlow()
-        .catch {
-          // Handle errors here
-        }
-        .onCompletion {
-          emitAll(apolloClient.query(query).watch())
-        }
     assertEquals(channel.receiveOrTimeout()?.hero?.name, "Artoo")
     assertEquals(channel2.receiveOrTimeout()?.hero?.name, "Artoo")
 
