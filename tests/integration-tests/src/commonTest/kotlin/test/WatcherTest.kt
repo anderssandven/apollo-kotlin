@@ -26,6 +26,7 @@ import com.apollographql.apollo3.testing.runTest
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.emitAll
@@ -85,12 +86,14 @@ class WatcherTest {
       }
     }
     val job2 = launch {
+      delay(500)
       apolloClient.query(query).watch().collect {
         channel2.send(it.data)
       }
     }
 
     assertEquals(channel.receiveOrTimeout()?.hero?.name, "R2-D2")
+    delay(1000)
     assertEquals(channel2.receiveOrTimeout()?.hero?.name, "R2-D2")
 
     // Another newer call gets updated information with "Artoo"
